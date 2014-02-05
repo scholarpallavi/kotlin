@@ -405,7 +405,7 @@ public class JetRefactoringUtil {
                         addExpression = false;
                     }
                 }
-                else if (element.getParent() instanceof JetCallElement) {
+                else if (element.getParent() instanceof JetCallElement || element.getParent() instanceof JetThisExpression) {
                     addExpression = false;
                 }
                 else if (element.getParent() instanceof JetOperationExpression) {
