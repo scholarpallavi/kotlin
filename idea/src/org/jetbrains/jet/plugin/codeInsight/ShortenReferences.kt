@@ -16,6 +16,10 @@ import java.util.HashSet;
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.containers.HashMap
 import java.util.ArrayList
+import org.jetbrains.jet.lang.psi.psiUtil.getParentByType
+import org.jetbrains.jet.lang.resolve.java.descriptor.JavaPropertyDescriptor
+import org.jetbrains.jet.lang.resolve.java.lazy.descriptors.LazyPackageFragmentForJavaClass
+import org.jetbrains.jet.lang.resolve.java.descriptor.JavaMethodDescriptor
 
 public object ShortenReferences {
     public fun process(element: JetElement) {
@@ -103,14 +107,15 @@ public object ShortenReferences {
 
             val target = bindingContext(referenceExpression).get(BindingContext.REFERENCE_TARGET, referenceExpression)
             if (target == null) return false
-            // references to nested classes should be shortened when visiting qualifier
-            if (target.getContainingDeclaration() is ClassDescriptor) return false
 
             val typeReference = PsiTreeUtil.getParentOfType(userType, javaClass<JetTypeReference>())!!
             val scope = resolveSession.resolveToElement(typeReference).get(BindingContext.TYPE_RESOLUTION_SCOPE, typeReference)!!
             val name = target.getName()
             val targetByName = scope.getClassifier(name)
             if (targetByName == null) {
+                // references to nested classes should be shortened when visiting qualifier
+                if (target.getContainingDeclaration() is ClassDescriptor) return false
+
                 addImportIfNeeded(target, file)
                 return true
             }
@@ -146,23 +151,39 @@ public object ShortenReferences {
         }
 
         private fun processDotQualifiedExpression(qualifiedExpression: JetDotQualifiedExpression): PsiElement {
+            val receiverExpression = qualifiedExpression.getReceiverExpression()
             val selectorExpression = qualifiedExpression.getSelectorExpression()
+
+            fun processReferenceExpression(refExpression: JetReferenceExpression, bindingContext: BindingContext): PsiElement {
+                val target = bindingContext.get(BindingContext.REFERENCE_TARGET, refExpression)
+                if (target != null) { //TODO: should we ever add imports to real packages?
+                    if ((target is JavaPropertyDescriptor || target is JavaMethodDescriptor) && receiverExpression is JetDotQualifiedExpression) {
+                        val containingDescriptor = target.getContainingDeclaration()
+                        if (containingDescriptor is LazyPackageFragmentForJavaClass) {
+                            return shortenIfPossible(receiverExpression, containingDescriptor.getCorrespondingClass(), bindingContext)
+                        }
+                    }
+
+                    return shortenIfPossible(qualifiedExpression, target, bindingContext)
+                }
+                return qualifiedExpression
+            }
+
             if (selectorExpression is JetCallExpression) {
                 val calleeExpression = selectorExpression.getCalleeExpression()
                 if (calleeExpression is JetReferenceExpression) {
+                    val bindingContext = bindingContext(calleeExpression)
+
                     val targetClass = instantiatedClass(calleeExpression)
-                    if (targetClass != null) {
-                        return shortenIfPossible(qualifiedExpression, targetClass, bindingContext(calleeExpression))
-                    }
+                    if (targetClass != null) return shortenIfPossible(qualifiedExpression, targetClass, bindingContext)
+
+                    return processReferenceExpression(calleeExpression, bindingContext)
                 }
             }
             else if (selectorExpression is JetReferenceExpression) {
-                val bindingContext = bindingContext(selectorExpression)
-                val target = bindingContext.get(BindingContext.REFERENCE_TARGET, selectorExpression)
-                if (target is ClassDescriptor || target is PackageViewDescriptor) { //TODO: should we ever add imports to real packages?
-                    return shortenIfPossible(qualifiedExpression, target, bindingContext)
-                }
+                return processReferenceExpression(selectorExpression, bindingContext(selectorExpression))
             }
+
             return qualifiedExpression
         }
 
@@ -194,9 +215,10 @@ public object ShortenReferences {
             return null
         }
 
-        private fun shortenIfPossible(qualifiedExpression: JetDotQualifiedExpression, targetClassOrPackage: DeclarationDescriptor, bindingContext: BindingContext): PsiElement {
-            // references to nested classes should be shortened when visiting qualifier
-            if (targetClassOrPackage.getContainingDeclaration() is ClassDescriptor) return qualifiedExpression
+        private fun shortenIfPossible(qualifiedExpression: JetDotQualifiedExpression, targetDescriptor: DeclarationDescriptor, bindingContext: BindingContext): PsiElement {
+            val isClassMember = targetDescriptor.getContainingDeclaration() is ClassDescriptor
+            val isUsageInImport = qualifiedExpression.getParentByType(javaClass<JetImportDirective>()) != null
+            val isClassOrPackage = targetDescriptor is ClassDescriptor || targetDescriptor is PackageViewDescriptor
 
             val referenceExpression = referenceExpression(qualifiedExpression.getSelectorExpression())!!
             val resolveBefore = resolveState(referenceExpression, bindingContext)
@@ -214,7 +236,9 @@ public object ShortenReferences {
                 return newExpression.replace(copy) // revert shortening
             }
 
-            addImportIfNeeded(targetClassOrPackage, file)
+            if (isUsageInImport || isClassMember || !isClassOrPackage) return newExpression.replace(copy) // revert shortening
+
+            addImportIfNeeded(targetDescriptor, file)
             return newExpression
         }
 

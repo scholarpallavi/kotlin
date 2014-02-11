@@ -1,0 +1,4 @@
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock.*
+import java.util.concurrent.locks.ReentrantReadWriteLock
+
+class A : ReentrantReadWriteLock.WriteLock
