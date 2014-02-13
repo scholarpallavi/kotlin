@@ -49,9 +49,9 @@ public abstract class AbstractKotlincExecutableTest extends TestCaseWithTmpdir {
             JetTestUtils.assertEqualsToFile(outFile, normalizedOutput);
         }
         catch (Exception e) {
-            System.err.println("exitcode " + exitCode);
-            System.err.println("<stdout>" + stdout + "</stdout>");
-            System.err.println("<stderr>" + stderr + "</stderr>");
+            System.out.println("exitcode " + exitCode);
+            System.out.println("<stdout>" + stdout + "</stdout>");
+            System.out.println("<stderr>" + stderr + "</stderr>");
 
             throw e;
         }
