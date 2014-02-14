@@ -13,4 +13,4 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var chrome = {extension: {lastError:null}}
+var chrome = {extension: {lastError: null}}

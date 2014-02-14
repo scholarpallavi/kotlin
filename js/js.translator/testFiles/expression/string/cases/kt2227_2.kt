@@ -3,10 +3,10 @@ package foo
 var i = 0
 
 class A() {
-  fun toString():  String {
-      i++
-      return "bar"
-  }
+    fun toString(): String {
+        i++
+        return "bar"
+    }
 }
 
 fun box(): Boolean {

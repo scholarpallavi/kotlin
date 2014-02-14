@@ -37,9 +37,9 @@ public class PublicClassWithProtecteds {
     protected fun hashCode(): Int = 0
     protected fun toString(): String = "public Bar"
 
-    val call_equals: ()->Unit = { equals(0) }
-    val call_hashCode: ()->Unit = { hashCode() }
-    val call_toString: ()->Unit = { toString() }
+    val call_equals: () -> Unit = { equals(0) }
+    val call_hashCode: () -> Unit = { hashCode() }
+    val call_toString: () -> Unit = { toString() }
 }
 
 class InternalClassWithProtecteds {
@@ -52,12 +52,12 @@ class InternalClassWithProtecteds {
     protected fun hashCode(i: Int): Int = i
     protected fun toString(s: String): String = s
 
-    val call_equals: ()->Unit = { equals(0) }
-    val call_hashCode: ()->Unit = { hashCode() }
-    val call_toString: ()->Unit = { toString() }
-    val call_equals2: ()->Unit = { equals(0, 1) }
-    val call_hashCode2: ()->Unit = { hashCode(2) }
-    val call_toString2: ()->Unit = { toString("3") }
+    val call_equals: () -> Unit = { equals(0) }
+    val call_hashCode: () -> Unit = { hashCode() }
+    val call_toString: () -> Unit = { toString() }
+    val call_equals2: () -> Unit = { equals(0, 1) }
+    val call_hashCode2: () -> Unit = { hashCode(2) }
+    val call_toString2: () -> Unit = { toString("3") }
 }
 
 private class PrivateClassWithProtecteds {
@@ -70,12 +70,12 @@ private class PrivateClassWithProtecteds {
     protected fun hashCode(i: Int): Int = i
     protected fun toString(s: String): String = s
 
-    val call_equals: ()->Unit = { equals(0) }
-    val call_hashCode: ()->Unit = { hashCode() }
-    val call_toString: ()->Unit = { toString() }
-    val call_equals2: ()->Unit = { equals(0, 1) }
-    val call_hashCode2: ()->Unit = { hashCode(2) }
-    val call_toString2: ()->Unit = { toString("3") }
+    val call_equals: () -> Unit = { equals(0) }
+    val call_hashCode: () -> Unit = { hashCode() }
+    val call_toString: () -> Unit = { toString() }
+    val call_equals2: () -> Unit = { equals(0, 1) }
+    val call_hashCode2: () -> Unit = { hashCode(2) }
+    val call_toString2: () -> Unit = { toString("3") }
 }
 
 public class PublicClassWithInternals {
@@ -111,9 +111,9 @@ public class PublicClassWithPrivates {
     private fun hashCode(): Int = 0
     private fun toString(): String = "public Bar"
 
-    val call_equals: ()->Unit = { equals(0) }
-    val call_hashCode: ()->Unit = { hashCode() }
-    val call_toString: ()->Unit = { toString() }
+    val call_equals: () -> Unit = { equals(0) }
+    val call_hashCode: () -> Unit = { hashCode() }
+    val call_toString: () -> Unit = { toString() }
 }
 
 class InternalClassWithPrivates {
@@ -126,12 +126,12 @@ class InternalClassWithPrivates {
     private fun hashCode(i: Int): Int = i
     private fun toString(s: String): String = s
 
-    val call_equals: ()->Unit = { equals(0) }
-    val call_hashCode: ()->Unit = { hashCode() }
-    val call_toString: ()->Unit = { toString() }
-    val call_equals2: ()->Unit = { equals(0, 1) }
-    val call_hashCode2: ()->Unit = { hashCode(2) }
-    val call_toString2: ()->Unit = { toString("3") }
+    val call_equals: () -> Unit = { equals(0) }
+    val call_hashCode: () -> Unit = { hashCode() }
+    val call_toString: () -> Unit = { toString() }
+    val call_equals2: () -> Unit = { equals(0, 1) }
+    val call_hashCode2: () -> Unit = { hashCode(2) }
+    val call_toString2: () -> Unit = { toString("3") }
 }
 
 private class PrivateClassWithPrivates {
@@ -144,12 +144,12 @@ private class PrivateClassWithPrivates {
     private fun hashCode(i: Int): Int = i
     private fun toString(s: String): String = s
 
-    val call_equals: ()->Unit = { equals(0) }
-    val call_hashCode: ()->Unit = { hashCode() }
-    val call_toString: ()->Unit = { toString() }
-    val call_equals2: ()->Unit = { equals(0, 1) }
-    val call_hashCode2: ()->Unit = { hashCode(2) }
-    val call_toString2: ()->Unit = { toString("3") }
+    val call_equals: () -> Unit = { equals(0) }
+    val call_hashCode: () -> Unit = { hashCode() }
+    val call_toString: () -> Unit = { toString() }
+    val call_equals2: () -> Unit = { equals(0, 1) }
+    val call_hashCode2: () -> Unit = { hashCode(2) }
+    val call_toString2: () -> Unit = { toString("3") }
 }
 
 // Helpers
@@ -178,7 +178,7 @@ fun <T> Function0<T>.extractNames(): Array<String> {
 
 var testGroup = ""
 
-fun test(expected: String, f: ()->Unit){
+fun test(expected: String, f: () -> Unit) {
     val actual = f.extractNames()
 
     if (expected != actual[1]) {
@@ -190,8 +190,8 @@ val SIMPLE_EQUALS = "equals"
 val SIMPLE_HASH_CODE = "hashCode"
 val SIMPLE_TO_STRING = "toString"
 val STABLE_EQUALS = { equals(0) }.extractNames()[1]
-val STABLE_HASH_CODE = { hashCode()}.extractNames()[1]
-val STABLE_TO_STRING = { toString()}.extractNames()[1]
+val STABLE_HASH_CODE = { hashCode() }.extractNames()[1]
+val STABLE_TO_STRING = { toString() }.extractNames()[1]
 
 fun box(): String {
     testGroup = "Public Class with publics"

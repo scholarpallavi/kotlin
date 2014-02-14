@@ -1,9 +1,9 @@
 package foo
 
 class Foo(val name: String) {
-  public fun toString(): String {
-    return name + "S"
-  }
+    public fun toString(): String {
+        return name + "S"
+    }
 }
 
 fun box(): String {

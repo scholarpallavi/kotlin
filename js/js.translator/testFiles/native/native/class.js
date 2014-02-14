@@ -15,10 +15,10 @@
  */
 
 function A(b) {
-    this.g = function() {
+    this.g = function () {
         return 2 * b;
     }
-    this.m = function() {
+    this.m = function () {
         return b - 1;
     }
 }
