@@ -3,14 +3,28 @@ package foo
 class A() {
     var i = 0
 
+    fun boo() = 1
+
     fun f() {
         for (j in 0..2) {
             foo {
-                i += j
+                i += j + boo()
             }
         }
     }
 }
+
+//fun A.bar() {
+//    for (u in 0..2) {
+//        foo {
+//            i += u + boo()
+//        }
+//    }
+//    if (false) {
+//        this.bar()
+//        bar()
+//    }
+//}
 
 fun foo(f: () -> Unit) {
     f()
@@ -19,5 +33,5 @@ fun foo(f: () -> Unit) {
 fun box(): Boolean {
     val a = A()
     a.f()
-    return a.i == 3
+    return a.i == 6
 }

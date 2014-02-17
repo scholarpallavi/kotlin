@@ -22,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor;
 import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.name.FqName;
@@ -113,7 +114,7 @@ public class TranslationContext {
             @Nullable AliasingContext aliasingContext,
             @Nullable UsageTracker usageTracker
     ) {
-        return new TranslationContext(this, fun, aliasingContext == null ? new AliasingContext(this.aliasingContext) : aliasingContext,
+        return new TranslationContext(this, fun, aliasingContext == null ? this.aliasingContext.inner() : aliasingContext,
                                       usageTracker);
     }
 
@@ -268,7 +269,11 @@ public class TranslationContext {
     @NotNull
     public JsExpression getThisObject(@NotNull DeclarationDescriptor descriptor) {
         DeclarationDescriptor effectiveDescriptor;
-        if (descriptor instanceof CallableDescriptor) {
+        // TODO ???
+        if (descriptor instanceof ReceiverParameterDescriptor) {
+            effectiveDescriptor = descriptor;
+        }
+        else if (descriptor instanceof CallableDescriptor) {
             effectiveDescriptor = getExpectedReceiverDescriptor((CallableDescriptor) descriptor);
             assert effectiveDescriptor != null;
         }

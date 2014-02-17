@@ -19,9 +19,8 @@ package org.jetbrains.k2js.translate.declaration;
 import com.google.dart.compiler.backend.js.ast.*;
 import com.intellij.util.SmartList;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.ClassKind;
-import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.JetClassBody;
 import org.jetbrains.jet.lang.psi.JetClassOrObject;
 import org.jetbrains.jet.lang.psi.JetObjectDeclaration;
@@ -29,7 +28,7 @@ import org.jetbrains.jet.lang.psi.JetParameter;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeConstructor;
 import org.jetbrains.k2js.translate.context.*;
-import org.jetbrains.k2js.translate.expression.InnerObjectTranslator;
+import org.jetbrains.k2js.translate.expression.InnerDeclarationTranslator;
 import org.jetbrains.k2js.translate.general.AbstractTranslator;
 import org.jetbrains.k2js.translate.initializer.ClassInitializerTranslator;
 import org.jetbrains.k2js.translate.utils.JsAstUtils;
@@ -38,13 +37,14 @@ import java.util.*;
 
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 import static org.jetbrains.jet.lang.types.TypeUtils.topologicallySortSuperclassesAndRecordAllInstances;
-import static org.jetbrains.k2js.translate.utils.TranslationUtils.getSuggestedName;
+import static org.jetbrains.k2js.translate.expression.InnerDeclarationTranslator.getJsNameForCapturedReceiver;
 import static org.jetbrains.k2js.translate.initializer.InitializerUtils.createClassObjectInitializer;
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getClassDescriptor;
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getPropertyDescriptorForConstructorParameter;
 import static org.jetbrains.k2js.translate.utils.JsDescriptorUtils.getContainingClass;
 import static org.jetbrains.k2js.translate.utils.JsDescriptorUtils.getSupertypesWithoutFakes;
 import static org.jetbrains.k2js.translate.utils.PsiUtils.getPrimaryConstructorParameters;
+import static org.jetbrains.k2js.translate.utils.TranslationUtils.getSuggestedName;
 import static org.jetbrains.k2js.translate.utils.TranslationUtils.simpleReturnFunction;
 
 /**
@@ -80,7 +80,7 @@ public final class ClassTranslator extends AbstractTranslator {
             return translate(context());
         }
 
-        return translateObjectInsideClass(containingClass, context());
+        return translateObjectInsideClass(context());
     }
 
     @NotNull
@@ -223,12 +223,33 @@ public final class ClassTranslator extends AbstractTranslator {
     }
 
     @NotNull
-    private JsExpression translateObjectInsideClass(@NotNull ClassDescriptor outerClass, @NotNull TranslationContext outerClassContext) {
+    private JsExpression translateObjectInsideClass(@NotNull TranslationContext outerClassContext) {
         JsFunction fun = new JsFunction(outerClassContext.scope(), new JsBlock());
-        JsNameRef outerClassRef = fun.getScope().declareName(Namer.OUTER_CLASS_NAME).makeRef();
-        UsageTracker usageTracker = new UsageTracker(descriptor, outerClassContext.usageTracker(), outerClass);
-        AliasingContext aliasingContext = outerClassContext.aliasingContext().inner(outerClass, outerClassRef);
-        TranslationContext funContext = outerClassContext.newFunctionBody(fun, aliasingContext, usageTracker);
+
+        final UsageTracker usageTracker = new UsageTracker(outerClassContext.usageTracker(), descriptor);
+
+        // TODO remove this copy-paste
+        AliasingContext superAliasingContext = new AliasingContext(context().aliasingContext()) {
+            @Nullable
+            @Override
+            protected JsExpression getAliasForDescriptor(@NotNull DeclarationDescriptor descriptor, boolean fromChild) {
+                JsExpression alias = aliasesForDescriptors != null ? aliasesForDescriptors.get(descriptor) : null;
+                if (alias != null) return alias;
+
+                if (descriptor instanceof ReceiverParameterDescriptor) {
+                    ReceiverParameterDescriptor receiverDescriptor = (ReceiverParameterDescriptor) descriptor;
+                    if (usageTracker.isCaptured(receiverDescriptor)) {
+                        JsNameRef nameRef = getJsNameForCapturedReceiver(context().scope(), receiverDescriptor).makeRef();
+                        registerAlias(receiverDescriptor, nameRef);
+                        return nameRef;
+                    }
+                }
+
+                return super.getAliasForDescriptor(descriptor, fromChild);
+            }
+        };
+
+        TranslationContext funContext = outerClassContext.newFunctionBody(fun, superAliasingContext, usageTracker);
 
         fun.getBody().getStatements().add(new JsReturn(translate(funContext)));
 
@@ -236,6 +257,13 @@ public final class ClassTranslator extends AbstractTranslator {
         assert body != null;
 
         JsNameRef define = funContext.define(getSuggestedName(funContext, descriptor), fun);
-        return new InnerObjectTranslator(funContext, fun).translate(define, usageTracker.isUsed() ? outerClassRef : null);
+        InnerDeclarationTranslator translator = new InnerDeclarationTranslator(funContext, outerClassContext, fun);
+        JsExpression expression = translator.translate(define);
+
+        if (!(expression instanceof JsInvocation)) {
+            return new JsInvocation(expression);
+        }
+
+        return expression;
     }
 }

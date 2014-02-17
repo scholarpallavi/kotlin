@@ -23,160 +23,98 @@ import gnu.trove.THashSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.k2js.translate.utils.JsDescriptorUtils;
 
 import java.util.List;
 import java.util.Set;
 
 public final class UsageTracker {
-    @Nullable
-    private final ClassDescriptor trackedClassDescriptor;
-    @NotNull
-    private final MemberDescriptor memberDescriptor;
+    private final MemberDescriptor containingDescriptor;
+    private final List<UsageTracker> children = new SmartList<UsageTracker>();
 
-    @Nullable
-    private List<UsageTracker> children;
+    private final Set<CallableDescriptor> capturedVariables = new OrderedSet<CallableDescriptor>();
 
-    private boolean used;
-    @Nullable
-    private Set<CallableDescriptor> capturedVariables;
-    private ClassDescriptor outerClassDescriptor;
+    public UsageTracker(@Nullable UsageTracker parent, @NotNull MemberDescriptor containingDescriptor) {
+        this.containingDescriptor = containingDescriptor;
 
-    public UsageTracker(@NotNull MemberDescriptor memberDescriptor, @Nullable UsageTracker parent, @Nullable ClassDescriptor trackedClassDescriptor) {
-        this.memberDescriptor = memberDescriptor;
-        this.trackedClassDescriptor = trackedClassDescriptor;
         if (parent != null) {
             parent.addChild(this);
         }
     }
 
-    public boolean isUsed() {
-        return used;
-    }
-
-    private void addChild(UsageTracker child) {
-        if (children == null) {
-            children = new SmartList<UsageTracker>();
-        }
+    private void addChild(@NotNull UsageTracker child) {
         children.add(child);
     }
 
-    private void addCapturedMember(CallableDescriptor descriptor) {
-        if (capturedVariables == null) {
-            capturedVariables = new OrderedSet<CallableDescriptor>();
-        }
+    private void used(@Nullable CallableDescriptor descriptor) {
+        if (descriptor == null) return;
         capturedVariables.add(descriptor);
     }
 
     public void triggerUsed(@NotNull DeclarationDescriptor descriptor) {
-        if ((descriptor instanceof PropertyDescriptor || descriptor instanceof PropertyAccessorDescriptor)) {
-            checkOuterClass(descriptor);
+        // optimization
+        if (!(descriptor instanceof CallableDescriptor) || capturedVariables.contains(descriptor)) return;
+
+        if (descriptor instanceof CallableMemberDescriptor) {
+            // TODO ???
+            if (!isAncestor(containingDescriptor, descriptor)) {
+                CallableMemberDescriptor callableMemberDescriptor = (CallableMemberDescriptor) descriptor;
+                used(callableMemberDescriptor.getExpectedThisObject());
+                used(callableMemberDescriptor.getReceiverParameter());
+
+                // local named function
+                if (callableMemberDescriptor.getVisibility() == Visibilities.LOCAL && !isAncestor(containingDescriptor, descriptor)) {
+                    used(callableMemberDescriptor);
+                }
+            }
         }
         else if (descriptor instanceof VariableDescriptor) {
             VariableDescriptor variableDescriptor = (VariableDescriptor) descriptor;
-            if ((capturedVariables == null || !capturedVariables.contains(variableDescriptor)) &&
-                !isAncestor(memberDescriptor, variableDescriptor)) {
-                addCapturedMember(variableDescriptor);
+            if (!capturedVariables.contains(variableDescriptor) && !isAncestor(containingDescriptor, variableDescriptor)) {
+                used(variableDescriptor);
             }
         }
-        else if (descriptor instanceof SimpleFunctionDescriptor) {
-            CallableDescriptor callableDescriptor = (CallableDescriptor) descriptor;
-            if (JsDescriptorUtils.isExtension(callableDescriptor)) {
-                return;
-            }
-
-            DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
-            if (containingDeclaration instanceof ClassDescriptor) {
-                // skip methods defined in class, for example Int::plus
-                if (outerClassDescriptor == null && (callableDescriptor.getExpectedThisObject() == null || isAncestor(containingDeclaration, memberDescriptor))) {
-                    outerClassDescriptor = (ClassDescriptor) containingDeclaration;
-                }
-                return;
-            }
-
-            // local named function
-            if (!(containingDeclaration instanceof ClassOrPackageFragmentDescriptor) &&
-                !isAncestor(memberDescriptor, descriptor)) {
-                addCapturedMember(callableDescriptor);
-            }
-        }
-        else if (descriptor instanceof ClassDescriptor && trackedClassDescriptor == descriptor) {
-            used = true;
+        // TODO test isAncestor cases
+        else if (descriptor instanceof ReceiverParameterDescriptor && !isAncestor(containingDescriptor, descriptor)) {
+            used((ReceiverParameterDescriptor) descriptor);
         }
     }
 
-    private void checkOuterClass(DeclarationDescriptor descriptor) {
-        if (outerClassDescriptor == null) {
-            DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
-            if (containingDeclaration instanceof ClassDescriptor) {
-                outerClassDescriptor = (ClassDescriptor) containingDeclaration;
-            }
-        }
+    public void forEachCaptured(@NotNull Consumer<CallableDescriptor> consumer) {
+        forEachCaptured(containingDescriptor, new THashSet<CallableDescriptor>(), consumer);
     }
 
-    @Nullable
-    public ClassDescriptor getOuterClassDescriptor() {
-        if (outerClassDescriptor != null || children == null) {
-            return outerClassDescriptor;
+    private void forEachCaptured(
+            @NotNull MemberDescriptor containingDescriptor,
+            @NotNull Set<CallableDescriptor> visited,
+            @NotNull Consumer<CallableDescriptor> consumer
+    ) {
+        for (CallableDescriptor callableDescriptor : capturedVariables) {
+            if (!isAncestor(containingDescriptor, callableDescriptor) && visited.add(callableDescriptor)) {
+                consumer.consume(callableDescriptor);
+            }
         }
-
         for (UsageTracker child : children) {
-            ClassDescriptor childOuterClassDescriptor = child.getOuterClassDescriptor();
-            if (childOuterClassDescriptor != null) {
-                return childOuterClassDescriptor;
-            }
-        }
-
-        return null;
-    }
-
-    public void forEachCaptured(Consumer<CallableDescriptor> consumer) {
-        forEachCaptured(consumer, memberDescriptor, children == null ? null : new THashSet<CallableDescriptor>());
-    }
-
-    private void forEachCaptured(Consumer<CallableDescriptor> consumer, MemberDescriptor requestorDescriptor, @Nullable THashSet<CallableDescriptor> visited) {
-        if (capturedVariables != null) {
-            for (CallableDescriptor callableDescriptor : capturedVariables) {
-                if (!isAncestor(requestorDescriptor, callableDescriptor) && (visited == null || visited.add(callableDescriptor))) {
-                    consumer.consume(callableDescriptor);
-                }
-            }
-        }
-        if (children != null) {
-            for (UsageTracker child : children) {
-                child.forEachCaptured(consumer, requestorDescriptor, visited);
-            }
+            child.forEachCaptured(containingDescriptor, visited, consumer);
         }
     }
 
     public boolean hasCaptured() {
-        if (capturedVariables != null) {
-            assert !capturedVariables.isEmpty();
-            return true;
+        if (!capturedVariables.isEmpty()) return true;
+
+        for (UsageTracker child : children) {
+            if (child.hasCaptured()) return true;
         }
 
-        if (children != null) {
-            for (UsageTracker child : children) {
-                if (child.hasCaptured()) {
-                    return true;
-                }
-            }
-        }
         return false;
     }
 
     public boolean isCaptured(@NotNull CallableDescriptor descriptor) {
-        if (capturedVariables != null && capturedVariables.contains(descriptor)) {
-            return true;
+        if (capturedVariables.contains(descriptor)) return true;
+
+        for (UsageTracker child : children) {
+            if (child.isCaptured(descriptor)) return true;
         }
 
-        if (children != null) {
-            for (UsageTracker child : children) {
-                if (child.isCaptured(descriptor)) {
-                    return true;
-                }
-            }
-        }
         return false;
     }
 

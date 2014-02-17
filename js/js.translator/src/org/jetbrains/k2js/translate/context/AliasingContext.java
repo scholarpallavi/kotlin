@@ -49,7 +49,7 @@ public class AliasingContext {
     }
 
     @Nullable
-    private Map<DeclarationDescriptor, JsExpression> aliasesForDescriptors;
+    protected Map<DeclarationDescriptor, JsExpression> aliasesForDescriptors;
 
     @Nullable
     private final Map<JetExpression, JsExpression> aliasesForExpressions;
@@ -57,7 +57,7 @@ public class AliasingContext {
     @Nullable
     private final AliasingContext parent;
 
-    /*package*/ AliasingContext(@Nullable AliasingContext parent) {
+    protected AliasingContext(@Nullable AliasingContext parent) {
         this(parent, null, null);
     }
 
@@ -69,6 +69,11 @@ public class AliasingContext {
         this.parent = parent;
         this.aliasesForDescriptors = aliasesForDescriptors;
         this.aliasesForExpressions = aliasesForExpressions;
+    }
+
+    @NotNull
+    public AliasingContext inner() {
+        return new AliasingContext(this);
     }
 
     @NotNull
@@ -102,7 +107,7 @@ public class AliasingContext {
 
 
     @Nullable
-    public JsExpression getAliasForDescriptor(@NotNull DeclarationDescriptor descriptor) {
+    final public JsExpression getAliasForDescriptor(@NotNull DeclarationDescriptor descriptor) {
         // these aliases cannot be shared and applicable only in current context
         return getAliasForDescriptor(descriptor, false);
     }

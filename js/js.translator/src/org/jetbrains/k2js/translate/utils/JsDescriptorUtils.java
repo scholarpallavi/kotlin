@@ -113,7 +113,7 @@ public final class JsDescriptorUtils {
     }
 
     @NotNull
-    public static DeclarationDescriptor getDeclarationDescriptorForReceiver(@NotNull ReceiverValue receiverParameter) {
+    public static ReceiverParameterDescriptor getDeclarationDescriptorForReceiver(@NotNull ReceiverValue receiverParameter) {
         DeclarationDescriptor declarationDescriptor;
 
         if (receiverParameter instanceof ThisReceiver) {
@@ -123,7 +123,19 @@ public final class JsDescriptorUtils {
             throw new UnsupportedOperationException("Unsupported receiver type: " + receiverParameter);
         }
 
-        return declarationDescriptor.getOriginal();
+        declarationDescriptor = declarationDescriptor.getOriginal();
+
+        if (declarationDescriptor instanceof ClassDescriptor) {
+            return ((ClassDescriptor) declarationDescriptor).getThisAsReceiverParameter();
+        }
+        else if (declarationDescriptor instanceof CallableDescriptor) {
+            ReceiverParameterDescriptor receiverDescriptor = ((CallableDescriptor) declarationDescriptor).getReceiverParameter();
+            assert receiverDescriptor != null;
+            return receiverDescriptor;
+        }
+        else {
+            throw new UnsupportedOperationException("Unsupported declaration type: " + declarationDescriptor);
+        }
     }
 
     @Nullable
