@@ -39,8 +39,6 @@ import com.intellij.psi.search.SearchScope
 import com.intellij.psi.search.PsiSearchScopeUtil
 import org.jetbrains.jet.lang.psi.JetClassBody
 import org.jetbrains.jet.lang.psi.JetParameterList
-import org.jetbrains.jet.lang.psi.JetNamedDeclaration
-import com.intellij.psi.PsiNamedElement
 import org.jetbrains.jet.lang.psi.JetObjectDeclaration
 import org.jetbrains.jet.lang.psi.JetNamedFunction
 import org.jetbrains.jet.lang.psi.JetProperty
@@ -49,6 +47,10 @@ import org.jetbrains.jet.lang.psi.JetPropertyAccessor
 import org.jetbrains.jet.lang.psi.JetParameter
 import com.intellij.psi.PsiParameterList
 import com.intellij.psi.PsiParameter
+import org.jetbrains.jet.lang.psi.JetQualifiedExpression
+import org.jetbrains.jet.lang.psi.JetUserType
+import org.jetbrains.jet.lang.resolve.name.FqName
+import org.jetbrains.jet.lang.psi.JetCallExpression
 
 fun PsiElement.getParentByTypesAndPredicate<T: PsiElement>(
         strict : Boolean = false, vararg parentClasses : Class<T>, predicate: (T) -> Boolean
@@ -209,4 +211,62 @@ fun PsiElement.parameterIndex(): Int {
         this is PsiParameter && parent is PsiParameterList -> parent.getParameterIndex(this)
         else -> -1
     }
+}
+
+// Return enclosing qualifying element for given JetSimpleNameExpression (JetQualifiedExpression or JetUserType or original expression)
+fun JetSimpleNameExpression.getQualifiedElement(): JetElement {
+    val baseExpression = (getParent() as? JetCallExpression) ?: this
+    val parent = baseExpression.getParent()
+    return when (parent) {
+        is JetQualifiedExpression -> if (parent.getSelectorExpression().isAncestor(baseExpression)) parent else baseExpression
+        is JetUserType -> if (parent.getReferenceExpression().isAncestor(baseExpression)) parent else baseExpression
+        else -> baseExpression
+    }
+}
+
+// Replace JetSimpleNameExpression (and its enclosing qualifier) with qualified element given by FqName
+// Result is either the same as original element, or JetQualifiedExpression, or JetUserType
+// Note that FqName may not be empty
+fun JetSimpleNameExpression.changeQualifiedName(fqName: FqName): JetElement {
+    assert (!fqName.isRoot(), "Can't set empty FqName for element $this")
+
+    val project = getProject()
+
+    val shortName = fqName.shortName().asString()
+    val fqNameBase = (getParent() as? JetCallExpression)?.let { parent ->
+        val callCopy = parent.copy() as JetCallExpression
+        callCopy.getCalleeExpression()!!.replace(JetPsiFactory.createSimpleName(project, shortName)).getParent()!!.getText()
+    } ?: shortName
+    val fqNamePrefix = fqName.parent().asString()
+    val text = if (fqNamePrefix != "") "$fqNamePrefix.$fqNameBase" else fqNameBase
+
+    val elementToReplace = getQualifiedElement()
+    return when (elementToReplace) {
+        is JetUserType -> elementToReplace.replace(JetPsiFactory.createType(project, text).getTypeElement()!!)
+        else -> elementToReplace.replace(JetPsiFactory.createExpression(project, text))
+    } as JetElement
+}
+
+// Returns rightmost selector of the qualified element (null if there is no such selector)
+fun JetElement.getQualifedElementSelector(unwrapCalls: Boolean): JetElement? {
+    return when (this) {
+        is JetSimpleNameExpression -> this
+        is JetQualifiedExpression -> {
+            val selector = getSelectorExpression()
+            if (selector is JetCallExpression && unwrapCalls) selector.getCalleeExpression() else selector
+        }
+        is JetUserType -> getReferenceExpression()
+        else -> this
+    }
+}
+
+fun JetSimpleNameExpression.getOutermostQualifiedElement(): JetElement {
+    var element = ((getParent() as? JetCallExpression) ?: this).getParent()
+    while (element is JetQualifiedExpression || element is JetUserType) {
+        val parent = element!!.getParent()
+        if (parent !is JetQualifiedExpression && parent !is JetUserType) return element as JetElement
+        element = parent
+    }
+
+    return this
 }

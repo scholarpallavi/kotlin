@@ -39,6 +39,13 @@ import org.jetbrains.jet.asJava.*
 import org.jetbrains.jet.lang.psi.JetElement
 import org.jetbrains.jet.utils.keysToMap
 import com.intellij.psi.PsiMethod
+import org.jetbrains.jet.lang.psi.JetSimpleNameExpression
+import org.jetbrains.jet.lang.psi.JetExpression
+import org.jetbrains.jet.lang.psi.psiUtil.getQualifiedElement
+import org.jetbrains.jet.lang.psi.JetUserType
+import org.jetbrains.jet.lang.psi.JetDotQualifiedExpression
+import org.jetbrains.jet.lang.psi.psiUtil.getQualifedElementSelector
+import org.jetbrains.jet.lang.descriptors.ClassOrPackageFragmentDescriptor
 
 public trait JetReference : PsiPolyVariantReference {
     public fun resolveToDescriptors(): Collection<DeclarationDescriptor>
@@ -164,5 +171,26 @@ public abstract class JetMultiReference<T : JetElement>(expression: T) : Abstrac
             return false
         }
         return multiResolve(false).map { it.getElement() }.filterNotNull().any { checkElementMatch(it, element) }
+    }
+}
+
+fun JetSimpleNameExpression.getUnstableQualifier(): JetExpression? {
+    val qualifiedElement = getQualifiedElement()
+    return when (qualifiedElement) {
+        is JetSimpleNameExpression, is JetUserType -> null
+
+        is JetDotQualifiedExpression -> {
+            val receiver = qualifiedElement.getReceiverExpression()
+            val receiverSelector = receiver.getQualifedElementSelector(false)
+
+            if (receiverSelector is JetSimpleNameExpression) {
+                val descriptor =
+                        AnalyzerFacadeWithCache.getContextForElement(receiverSelector)[BindingContext.REFERENCE_TARGET, receiverSelector]
+                if (descriptor is ClassOrPackageFragmentDescriptor || descriptor is PackageViewDescriptor)  null else receiver
+            }
+            else receiver
+        }
+
+        else -> null
     }
 }
