@@ -1,17 +1,27 @@
 package h
 
-class Square() {
-  var size : Double =
-  <!UNRESOLVED_REFERENCE!>set<!>(<!UNRESOLVED_REFERENCE!>value<!>) {
-    $area = size * size
-  }
+class RightSquare() {
+    var size : Double = 1.0
+        set(value) {
+            $area = size * size
+        }
 
-  <!MUST_BE_INITIALIZED_OR_BE_ABSTRACT!>var area : Double<!>
-  private set
+    var area: Double = 0.0
+        private set
+}
+
+class Square() {
+    var size : Double =
+    <!UNRESOLVED_REFERENCE!>set<!>(<!UNRESOLVED_REFERENCE!>value<!>) {
+        <!INITIALIZATION_BEFORE_DECLARATION!>$area<!> = size * size
+    }
+
+    <!MUST_BE_INITIALIZED_OR_BE_ABSTRACT!>var area : Double<!>
+        private set
 }
 
 fun main(args : Array<String>) {
-  val s = Square()
+    val s = Square()
 
-  s.size = 2.0
+    s.size = 2.0
 }
