@@ -1508,6 +1508,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/definiteReturnInWhen.kt");
             }
             
+            @TestMetadata("initializationFromLocalFunction.kt")
+            public void testInitializationFromLocalFunction() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/initializationFromLocalFunction.kt");
+            }
+            
             @TestMetadata("kt1001.kt")
             public void testKt1001() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/kt1001.kt");

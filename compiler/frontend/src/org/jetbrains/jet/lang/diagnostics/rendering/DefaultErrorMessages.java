@@ -180,6 +180,7 @@ public class DefaultErrorMessages {
         MAP.put(SETTER_PROJECTED_OUT, "Setter for ''{0}'' is removed by type projection", NAME);
         MAP.put(INVISIBLE_SETTER, "Cannot assign to ''{0}'': the setter is ''{1}'' in ''{2}''", NAME, TO_STRING, NAME);
         MAP.put(INITIALIZATION_BEFORE_DECLARATION, "Variable cannot be initialized before declaration", NAME);
+        MAP.put(INITIALIZATION_FROM_LOCAL_FUNCTION, "Val cannot be initialized here", NAME);
         MAP.put(VARIABLE_EXPECTED, "Variable expected");
 
         MAP.put(VAL_OR_VAR_ON_LOOP_PARAMETER, "''{0}'' on loop parameter is not allowed", TO_STRING);

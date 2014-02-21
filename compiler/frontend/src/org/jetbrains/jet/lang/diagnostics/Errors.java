@@ -458,6 +458,7 @@ public interface Errors {
     DiagnosticFactory1<JetExpression, DeclarationDescriptor> SETTER_PROJECTED_OUT = DiagnosticFactory1.create(ERROR);
 
     DiagnosticFactory1<JetExpression, DeclarationDescriptor> INITIALIZATION_BEFORE_DECLARATION = DiagnosticFactory1.create(ERROR);
+    DiagnosticFactory1<JetExpression, DeclarationDescriptor> INITIALIZATION_FROM_LOCAL_FUNCTION = DiagnosticFactory1.create(ERROR);
 
     DiagnosticFactory0<JetExpression> VARIABLE_EXPECTED = DiagnosticFactory0.create(ERROR);
 

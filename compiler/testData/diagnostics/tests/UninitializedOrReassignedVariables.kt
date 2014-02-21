@@ -272,7 +272,7 @@ fun foo() {
             $z = 3
         }
         fun foo() {
-            <!VAL_REASSIGNMENT!>y<!> = 10
+            <!INITIALIZATION_FROM_LOCAL_FUNCTION!>y<!> = 10
             <!VAL_REASSIGNMENT!>z<!> = 13
         }
     }
@@ -291,11 +291,11 @@ class TestObjectExpression() {
                     $x = 1
             }
             fun inner1() {
-                <!VAL_REASSIGNMENT!>y<!> = 101
+                <!INITIALIZATION_FROM_LOCAL_FUNCTION!>y<!> = 101
                 <!VAL_REASSIGNMENT!>a<!> = 231
             }
             fun inner2() {
-                y = 101
+                <!INITIALIZATION_FROM_LOCAL_FUNCTION!>y<!> = 101
                 a = 231
             }
         }

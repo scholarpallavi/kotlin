@@ -399,6 +399,14 @@ public class JetFlowInformationProvider {
                 return true;
             }
         }
+        if (!isInitializedNotHere && !variableDescriptor.isVar() && !varWithValReassignErrorGenerated.contains(variableDescriptor)) {
+            PsiElement variableDeclaration = BindingContextUtils.descriptorToDeclaration(trace.getBindingContext(), variableDescriptor);
+            JetDeclaration outerFunction = PsiTreeUtil.getParentOfType(expression, JetFunction.class);
+            if (outerFunction != null && !PsiTreeUtil.isAncestor(outerFunction, variableDeclaration, false)) {
+                report(Errors.INITIALIZATION_FROM_LOCAL_FUNCTION.on(expression, variableDescriptor), ctxt);
+                return true;
+            }
+        }
         return false;
     }
 
