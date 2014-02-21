@@ -274,7 +274,7 @@ public class InlineCodegen implements ParentCodegenAware, CallGenerator {
     @Override
     public boolean shouldPutValue(
             @NotNull Type type,
-            @NotNull StackValue stackValue,
+            @Nullable StackValue stackValue,
             ValueParameterDescriptor descriptor
     ) {
         //boolean isInline = true/*context.isInlineFunction() || context.getParentContext() instanceof ClosureContext*/;
@@ -284,6 +284,11 @@ public class InlineCodegen implements ParentCodegenAware, CallGenerator {
         //        return false;
         //    }
         //}
+
+        if (stackValue == null) {
+            //default or vararg
+            return true;
+        }
 
         //remap only inline functions (and maybe non primitives)
         //TODO - clean asserion and remapping logic
