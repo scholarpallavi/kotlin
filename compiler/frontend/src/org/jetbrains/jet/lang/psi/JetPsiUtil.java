@@ -1042,4 +1042,18 @@ public class JetPsiUtil {
                 expression;
         return (JetToken) elementType;
     }
+
+    public static <T extends JetExpression> boolean isAncestorThroughParentOfType(
+            @Nullable PsiElement ancestor,
+            @NotNull PsiElement element,
+            @NotNull Class<T> aClass
+    ) {
+        T parent = PsiTreeUtil.getParentOfType(element, aClass);
+        if (parent != null) {
+            if (PsiTreeUtil.isAncestor(ancestor, parent, false)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

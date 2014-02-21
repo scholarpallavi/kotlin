@@ -55,6 +55,7 @@ import static org.jetbrains.jet.lang.cfg.PseudocodeTraverser.TraversalOrder.BACK
 import static org.jetbrains.jet.lang.cfg.PseudocodeTraverser.TraversalOrder.FORWARD;
 import static org.jetbrains.jet.lang.cfg.PseudocodeVariablesData.VariableUseState.*;
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
+import static org.jetbrains.jet.lang.psi.JetPsiUtil.isAncestorThroughParentOfType;
 import static org.jetbrains.jet.lang.resolve.BindingContext.*;
 import static org.jetbrains.jet.lang.resolve.calls.TailRecursionKind.*;
 import static org.jetbrains.jet.lang.types.TypeUtils.NO_EXPECTED_TYPE;
@@ -320,6 +321,16 @@ public class JetFlowInformationProvider {
             }
         }
         if (!isInitialized && !varWithUninitializedErrorGenerated.contains(variableDescriptor)) {
+            PsiElement variableDeclaration = BindingContextUtils.descriptorToDeclaration(trace.getBindingContext(), variableDescriptor);
+            if (variableDeclaration instanceof JetProperty) {
+                JetExpression initializer = ((JetProperty) variableDeclaration).getInitializer();
+                if ((isAncestorThroughParentOfType(initializer, element, JetObjectLiteralExpression.class)
+                     && (isAncestorThroughParentOfType(initializer, element, JetNamedFunction.class)))
+                    || isAncestorThroughParentOfType(initializer, element, JetFunctionLiteralExpression.class)) {
+                    //no error should be generated
+                    return;
+                }
+            }
             if (!(variableDescriptor instanceof PropertyDescriptor)) {
                 varWithUninitializedErrorGenerated.add(variableDescriptor);
             }
