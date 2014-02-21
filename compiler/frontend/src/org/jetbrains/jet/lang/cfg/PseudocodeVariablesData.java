@@ -152,7 +152,7 @@ public class PseudocodeVariablesData {
         LocalFunctionDeclarationUpdateStrategy<Map<VariableDescriptor, VariableInitState>> strategyRemovingLocalFunctionParameters =
                 createStrategyRemovingLocalFunctionParametersFromData();
 
-        return PseudocodeTraverser.collectData(
+        return new PseudocodeVariableDataCollector(bindingContext).collectData(
                 pseudocode, FORWARD, ANALYSE_LOCAL_DECLARATIONS,
                 initialMap, initialMap, instructionDataMergeStrategy, strategyRemovingLocalFunctionParameters);
     }
@@ -280,7 +280,7 @@ public class PseudocodeVariablesData {
                 };
         LocalFunctionDeclarationUpdateStrategy<Map<VariableDescriptor, VariableUseState>> strategyRemovingLocalFunctionParameters =
                 createStrategyRemovingLocalFunctionParametersFromData();
-        return PseudocodeTraverser.collectData(
+        return new PseudocodeVariableDataCollector(bindingContext).collectData(
                 pseudocode, BACKWARD, ANALYSE_LOCAL_DECLARATIONS, Collections.<VariableDescriptor, VariableUseState>emptyMap(),
                 sinkInstructionData, collectVariableUseStatusStrategy, strategyRemovingLocalFunctionParameters);
     }
