@@ -20,19 +20,21 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.cfg.PseudocodeTraverser.*;
+import org.jetbrains.jet.lang.cfg.PseudocodeTraverser.Edges;
+import org.jetbrains.jet.lang.cfg.PseudocodeTraverser.InstructionAnalyzeStrategy;
+import org.jetbrains.jet.lang.cfg.PseudocodeTraverser.InstructionDataMergeStrategy;
 import org.jetbrains.jet.lang.cfg.pseudocode.*;
-import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
 import org.jetbrains.jet.lang.psi.JetDeclaration;
-import org.jetbrains.jet.lang.psi.JetElement;
 import org.jetbrains.jet.lang.psi.JetProperty;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 
-import static org.jetbrains.jet.lang.cfg.PseudocodeTraverser.LookInsideStrategy.ANALYSE_LOCAL_DECLARATIONS;
-import static org.jetbrains.jet.lang.cfg.PseudocodeTraverser.LookInsideStrategy.SKIP_LOCAL_DECLARATIONS;
 import static org.jetbrains.jet.lang.cfg.PseudocodeTraverser.TraversalOrder.BACKWARD;
 import static org.jetbrains.jet.lang.cfg.PseudocodeTraverser.TraversalOrder.FORWARD;
 
@@ -132,9 +134,9 @@ public class PseudocodeVariablesData {
     private Map<Instruction, Edges<Map<VariableDescriptor, VariableInitState>>> getVariableInitializers(@NotNull Pseudocode pseudocode) {
 
         final Set<VariableDescriptor> declaredVariables = getDeclaredVariables(pseudocode, true);
-        Map<VariableDescriptor, VariableInitState> initialMap = Collections.emptyMap();
 
-        InstructionDataMergeStrategy<Map<VariableDescriptor, VariableInitState>> instructionDataMergeStrategy =
+        return new PseudocodeVariableDataCollector(bindingContext).collectData(
+                pseudocode, FORWARD,
                 new InstructionDataMergeStrategy<Map<VariableDescriptor, VariableInitState>>() {
                     @Override
                     public Edges<Map<VariableDescriptor, VariableInitState>> execute(
@@ -148,13 +150,7 @@ public class PseudocodeVariablesData {
                                 addVariableInitStateFromCurrentInstructionIfAny(instruction, enterInstructionData, declaredVariables);
                         return Edges.create(enterInstructionData, exitInstructionData);
                     }
-                };
-        LocalFunctionDeclarationUpdateStrategy<Map<VariableDescriptor, VariableInitState>> strategyRemovingLocalFunctionParameters =
-                createStrategyRemovingLocalFunctionParametersFromData();
-
-        return new PseudocodeVariableDataCollector(bindingContext).collectData(
-                pseudocode, FORWARD, ANALYSE_LOCAL_DECLARATIONS,
-                initialMap, initialMap, instructionDataMergeStrategy, strategyRemovingLocalFunctionParameters);
+                });
     }
 
     public static VariableInitState getDefaultValueForInitializers(
@@ -233,8 +229,8 @@ public class PseudocodeVariablesData {
 
     @NotNull
     public Map<Instruction, Edges<Map<VariableDescriptor, VariableUseState>>> getVariableUseStatusData() {
-        Map<VariableDescriptor, VariableUseState> sinkInstructionData = Maps.newHashMap();
-        InstructionDataMergeStrategy<Map<VariableDescriptor, VariableUseState>> collectVariableUseStatusStrategy =
+        return new PseudocodeVariableDataCollector(bindingContext).collectData(
+                pseudocode, BACKWARD,
                 new InstructionDataMergeStrategy<Map<VariableDescriptor, VariableUseState>>() {
                     @Override
                     public Edges<Map<VariableDescriptor, VariableUseState>> execute(
@@ -277,46 +273,7 @@ public class PseudocodeVariablesData {
                         }
                         return Edges.create(enterResult, exitResult);
                     }
-                };
-        LocalFunctionDeclarationUpdateStrategy<Map<VariableDescriptor, VariableUseState>> strategyRemovingLocalFunctionParameters =
-                createStrategyRemovingLocalFunctionParametersFromData();
-        return new PseudocodeVariableDataCollector(bindingContext).collectData(
-                pseudocode, BACKWARD, ANALYSE_LOCAL_DECLARATIONS, Collections.<VariableDescriptor, VariableUseState>emptyMap(),
-                sinkInstructionData, collectVariableUseStatusStrategy, strategyRemovingLocalFunctionParameters);
-    }
-
-    public <D> LocalFunctionDeclarationUpdateStrategy<Map<VariableDescriptor, D>> createStrategyRemovingLocalFunctionParametersFromData() {
-        return new LocalFunctionDeclarationUpdateStrategy<Map<VariableDescriptor, D>>() {
-            @Override
-            public Edges<Map<VariableDescriptor, D>> execute(
-                    @NotNull LocalFunctionDeclarationInstruction instruction,
-                    @NotNull Edges<Map<VariableDescriptor, D>> result
-            ) {
-                JetElement element = instruction.getElement();
-                FunctionDescriptor descriptor = bindingContext.get(BindingContext.FUNCTION, element);
-                if (descriptor == null) return result;
-
-                return Edges.create(removeVariablesDeclaredInLocalFunction(result.in, descriptor),
-                                    removeVariablesDeclaredInLocalFunction(result.out, descriptor));
-            }
-
-            private Map<VariableDescriptor, D> removeVariablesDeclaredInLocalFunction(
-                    @NotNull Map<VariableDescriptor, D> variables,
-                    @NotNull FunctionDescriptor localFunction
-            ) {
-                Map<VariableDescriptor, D> result = Maps.newHashMap(variables);
-                Set<VariableDescriptor> toRemove = Sets.newHashSet();
-                for (VariableDescriptor variable : result.keySet()) {
-                    if (DescriptorUtils.isAncestor(localFunction, variable.getContainingDeclaration(), false)) {
-                        toRemove.add(variable);
-                    }
-                }
-                for (VariableDescriptor variable : toRemove) {
-                    result.remove(variable);
-                }
-                return result;
-            }
-        };
+                });
     }
 
     public static class VariableInitState {
