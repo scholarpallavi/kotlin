@@ -95,7 +95,6 @@ import org.jetbrains.jet.checkers.AbstractJetDiagnosticsTestWithStdLib
 import org.jetbrains.jet.plugin.codeInsight.AbstractInsertImportOnPasteTest
 import org.jetbrains.jet.resolve.AbstractReferenceToJavaWithWrongFileStructureTest
 import org.jetbrains.jet.plugin.navigation.AbstractKotlinGotoTest
-import org.jetbrains.jet.plugin.refactoring.move.AbstractJetMoveTest
 
 fun main(args: Array<String>) {
     System.setProperty("java.awt.headless", "true")
@@ -424,10 +423,6 @@ fun main(args: Array<String>) {
         testClass(javaClass<AbstractJetFindUsagesTest>()) {
             model("findUsages/kotlin", pattern = """^(.+)\.0\.kt$""")
             model("findUsages/java", pattern = """^(.+)\.0\.java$""")
-        }
-
-        testClass(javaClass<AbstractJetMoveTest>()) {
-            model("refactoring/move", extension = "test", singleClass = true)
         }
 
         testClass(javaClass<AbstractCompletionWeigherTest>()) {
