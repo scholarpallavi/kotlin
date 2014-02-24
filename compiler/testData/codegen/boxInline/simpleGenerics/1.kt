@@ -1,8 +1,4 @@
 import test.*
-import kotlin.io.*
-import kotlin.util.*
-import java.io.*
-import java.util.*
 
 fun test1(s: Long): String {
     return doSmth(s)
